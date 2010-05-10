@@ -1,0 +1,3 @@
+recursive-include multichain_mcmc *.pyx
+recursive-include multichain_mcmc/relevant_literature *
+recursive-include multichain_mcmc/examples *
