@@ -40,9 +40,9 @@ print meanResponsesEstimates/model7.trueResponses
 
 
 subplot(3,3,1)
-hist(history[:, slices['intercept']]])
+hist(history[:, slices['intercept']])
 subplot(3,3,2)
-hist(history[:, slices['sd']]])
+hist(history[:, slices['sd']])
 subplot(3,3,3)
 hist(history[:, 2])
 subplot(3,3,4)

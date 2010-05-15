@@ -8,7 +8,7 @@ from pymc import *
 
 from numpy import *
 from  rand_no_replace import *
-from gr_convergence import GRConvergence
+from convergence import GRConvergence
 import time 
 
 

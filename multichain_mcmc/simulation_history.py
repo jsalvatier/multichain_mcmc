@@ -57,7 +57,7 @@ class SimulationHistory(object):
         
     @property 
     def sequence_histories(self):
-        self.group_sequence_histories('all')
+        return self.group_sequence_histories('all')
     
     def group_sequence_histories(self, name):
         return self._sequence_histories[:,self.group_indicies[name], np.ceil(self.relevantHistoryStart):self.relevantHistoryEnd]

@@ -12,7 +12,7 @@ from __future__ import division
 from pymc import *
 
 from numpy import *
-from gr_convergence import GRConvergence
+from convergence import GRConvergence
 from multichain import MultiChainSampler, MultiChain
 import time 
 
