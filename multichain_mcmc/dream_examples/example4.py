@@ -9,7 +9,7 @@ import pymc
 import multichain_mcmc
 from pylab import *
 import numpy 
-
+#NOT A WORKING EXAMPLE
 sampler = multichain_mcmc.DreamSampler(model4.model_gen)
 sampler.sample(nChains = 10,adaptationRate = 'auto', mConvergence = True,mAccept = True)
 slices = sampler.slices

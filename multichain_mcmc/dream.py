@@ -39,7 +39,7 @@ from pymc import *
 
 from numpy import *
 
-from convergence import GRConvergence
+from convergence import GRConvergence, CovarianceConvergence
 from multichain import MultiChainSampler, MultiChain
 import time 
 import dream_components
@@ -57,7 +57,7 @@ class DreamSampler(MultiChainSampler):
     _numbers = None
     acceptRatio = 0.0
     
-    def sample(self, ndraw = 1000, ndraw_max = 20000 , nChains = 5, burnIn = 100, thin = 5, convergenceCriteria = 1.1,  nCR = 3, DEpairs = 1, adaptationRate = .65, eps = 5e-6, mConvergence = False, mAccept = False):
+    def sample(self, ndraw = 1000, ndraw_max = 20000 , nChains = 5, burnIn = 100, thin = 5, convergenceCriteria = 1.1,variables_of_interest = None,  nCR = 3, DEpairs = 1, adaptationRate = .65, eps = 5e-6, mConvergence = False, mAccept = False):
         """
         Samples from a posterior distribution using DREAM.
         
@@ -97,6 +97,13 @@ class DreamSampler(MultiChainSampler):
         
         history = SimulationHistory(maxChainDraws, self._nChains, self.dimensions)
         
+        if variables_of_interest is not None:
+            slices = []
+            for var in variables_of_interest:
+                slices.append(self.slices[var])
+        else:
+            slices = [slice(None,None)]
+        history.add_group('interest', slices)
         
         # initialize the temporary storage vectors
         currentVectors = zeros((nChains, self.dimensions))
@@ -141,6 +148,7 @@ class DreamSampler(MultiChainSampler):
                 
         # initilize the convergence diagnostic object
         grConvergence = GRConvergence()
+        covConvergence = CovarianceConvergence()
 
         
         # get the starting log likelihood and position for each of the chains 
@@ -201,14 +209,16 @@ class DreamSampler(MultiChainSampler):
             
                     
             # we only want to recalculate convergence criteria when we are past the burn in period
-            if history.nsamples > 0 and iter > lastRecalculation * 1.1:
+            if history.nsamples > 0 and iter > lastRecalculation * 1.1 and history.nsequence_histories > self.dimensions:
 
                 lastRecalculation = iter
                 grConvergence.update(history)
+                covConvergence.update(history,'all')
+                covConvergence.update(history,'interest')
                 
                 if mConvergence:
                     print mean(grConvergence.R), std(grConvergence.R), max(grConvergence.R), argmax(grConvergence.R)
-                    print covConvergence.relativeVariances
+                    print covConvergence.relativeVariances['interest']
 
             if iter % thin == 0:
                 

@@ -101,7 +101,7 @@ class SimulationHistory(object):
     
     @property
     def all_combined_history(self):
-        self.group_all_combined_history('all')
+        return self.group_all_combined_history('all')
         
     def group_all_combined_history(self, name):
         return self._combined_history[0:(self.relevantHistoryEnd * self._nChains),self.group_indicies[name]]
