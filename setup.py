@@ -14,30 +14,17 @@ LONG_DESCRIPTION    ="""
                     A simple framework based on PyMC for multichain MCMC algorithms. 
                     
                     Contains working implementations of:
-                        1) DREAM/DREAM_ZS sampler
-                        2) Adaptive Metropolis Adjusted Langevin Algorithm (AMALA) sampler
-                    
-                    1) DREAM_ZSimplementation based on the algorithms presented in the following two papers:
-                    
-                        C.J.F. ter Braak, and J.A. Vrugt, Differential evolution Markov chain with
-                        snooker updater and fewer chains, Statistics and Computing, 18(4),
-                        435-446, doi:10.1007/s11222-008-9104-9, 2008.
+                        * DREAM/DREAM_ZS sampler : multichain_mcmc.dream.DreamSampler
+                        * Adaptive Metropolis Adjusted Langevin Algorithm (AMALA) sampler : multichain_mcmc.amala.AmalaSampler
                         
-                        J.A. Vrugt, C.J.F. ter Braak, C.G.H. Diks, D. Higdon, B.A. Robinson, and
-                        J.M. Hyman, Accelerating Markov chain Monte Carlo simulation by
-                        differential evolution with self-adaptive randomized subspace sampling,
-                        International Journal of Nonlinear Sciences and Numerical
-                        Simulation, 10(3), 273-290, 2009.
-                    2) AMALA implementation based on 
-                    
-                        AMALA sampler requires PyMC branch with gradient information support to function.
+                    See the sampler classes for details. AMALA sampler requires PyMC branch with gradient information support to function.
                         http://github.com/pymc-devs/pymc/tree/gradientBranch
                     """
 MAINTAINER          = 'John Salvatier'
 MAINTAINER_EMAIL    = "jsalvati@u.washington.edu"
 URL                 = "pypi.python.org/pypi/multichain_mcmc"
 LICENSE             = "BSD"
-VERSION             = "0.2.2"
+VERSION             = "0.2.3"
 
 classifiers =  ['Development Status :: 2 - Pre-Alpha',
                 'Programming Language :: Python',
@@ -59,7 +46,7 @@ if __name__ == "__main__":
         long_description = LONG_DESCRIPTION,
         packages = ['multichain_mcmc'], 
         classifiers =classifiers,
-        install_requires=["pymc >= 2.1alpha", "numpy >= 1.2",'scipy >= 0.7', 'cython'],
+        #install_requires=["pymc >= 2.1alpha", "numpy >= 1.2",'scipy >= 0.7', 'cython'],
         cmdclass = {'build_ext': build_ext},
         ext_modules = [Extension("multichain_mcmc.rand_no_replace", ["multichain_mcmc/rand_no_replace.pyx"])])
 

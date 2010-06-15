@@ -5,30 +5,7 @@ Created on Oct 24, 2009
 
 Introduction
 ------------ 
-Implements a variant of DREAM_ZS using PyMC. The sampler is a multi-chain sampler that proposal states based on the differences between 
-random past states. The sampler does not use the snooker updater but does use the crossover probability, probability distribution. Convergence
-assessment is based on a naive implementation of the Gelman-Rubin convergence statistics; this may be updated to a less naive
- implementation later on.  
- 
-Academic papers of interest:
- 
-    Provides the basis for the DREAM_ZS extension (also see second paper).
-    C.J.F. ter Braak, and J.A. Vrugt, Differential evolution Markov chain with
-    snooker updater and fewer chains, Statistics and Computing, 18(4),
-    435-446, doi:10.1007/s11222-008-9104-9, 2008.    
-    
-    Introduces the origional DREAM idea:
-    J.A. Vrugt, C.J.F. ter Braak, C.G.H. Diks, D. Higdon, B.A. Robinson, and
-    J.M. Hyman, Accelerating Markov chain Monte Carlo simulation by
-    differential evolution with self-adaptive randomized subspace sampling,
-    International Journal of Nonlinear Sciences and Numerical
-    Simulation, 10(3), 273-290, 2009.
-    
-    This paper uses DREAM in an application
-    J.A. Vrugt, C.J.F. ter Braak, M.P. Clark, J.M. Hyman, and B.A. Robinson,
-    Treatment of input uncertainty in hydrologic modeling: Doing hydrology
-    backward with Markov chain Monte Carlo simulation, Water Resources
-    Research, 44, W00B09, doi:10.1029/2007WR006720, 2008.
+
 
 Most of the sampler logic takes place in DreamSampler.sample(). DreamSampler contains many MultiChain objects which represent one 
 chain, each DreamChain object contains a MultiChainStepper object. The DreamSampler object does the looping and coordinates the step methods
@@ -48,10 +25,29 @@ from simulation_history import *
 
 class DreamSampler(MultiChainSampler):
     """
-    DREAM sampling object. 
-    
-    Contains multiple MultiChain objects which each use a MultiChainStepper step method. 
-    The DreamSampler coordinates their stepping.
+    Implements a variant of DREAM_ZS using PyMC. The sampler is a multi-chain sampler that proposal states based on the differences between 
+    random past states. The sampler does not use the snooker updater but does use the crossover probability, probability distribution. Convergence
+    assessment is based on a naive implementation of the Gelman-Rubin convergence statistics.
+ 
+    The basis for this algorithm are the following papers:
+     
+        Provides the basis for the DREAM_ZS extension (also see second paper).
+        C.J.F. ter Braak, and J.A. Vrugt, Differential evolution Markov chain with
+        snooker updater and fewer chains, Statistics and Computing, 18(4),
+        435-446, doi:10.1007/s11222-008-9104-9, 2008.    
+        
+        Introduces the origional DREAM idea:
+        J.A. Vrugt, C.J.F. ter Braak, C.G.H. Diks, D. Higdon, B.A. Robinson, and
+        J.M. Hyman, Accelerating Markov chain Monte Carlo simulation by
+        differential evolution with self-adaptive randomized subspace sampling,
+        International Journal of Nonlinear Sciences and Numerical
+        Simulation, 10(3), 273-290, 2009.
+        
+        This paper uses DREAM in an application
+        J.A. Vrugt, C.J.F. ter Braak, M.P. Clark, J.M. Hyman, and B.A. Robinson,
+        Treatment of input uncertainty in hydrologic modeling: Doing hydrology
+        backward with Markov chain Monte Carlo simulation, Water Resources
+        Research, 44, W00B09, doi:10.1029/2007WR006720, 2008.
     """
     
     _numbers = None

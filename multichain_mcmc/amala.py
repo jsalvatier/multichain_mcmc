@@ -1,13 +1,8 @@
 '''
 Created on Jan 13, 2010
 
-@author: johnsalvatier
-
-implementation of adaptive Metropolist adjusted Langevin algorithm (Adaptive MaLa) mcmc sampling technique
-
+@author: johnsalvatier                 
 '''
-
-
 from __future__ import division
 from pymc import *
 
@@ -22,7 +17,20 @@ from simulation_history import *
 
 class AmalaSampler(MultiChainSampler):
     """
-
+    Implementation of Adaptive Metropolist adjusted Langevin algorithm (Adaptive MaLa) MCMC sampling technique.
+    Requires PyMC branch with gradient information support in order to function:
+        http://github.com/pymc-devs/pymc/tree/gradientBranch
+    
+    MaLa uses gradient information in order to bias the proposal distribution in the direction of increasing 
+    probability density. Adaptive technique based on (1). Multiple chains are used in order to attempt to 
+    improve convergence monitoring and adaptation. Resampling from the past (2) is used in order to avoid
+    getting stuck in low probability regions. However (2) shows that resampling from the past generally slows
+    down sampling, so we try to do this mostly near the beginning of sampling. Convergence assessment is 
+    based on a naive implementation of the Gelman-Rubin convergence statistics.
+    
+    (1) Atchadé, Y. (2006). An Adaptive Version for the Metropolis Adjusted Langevin Algorithm with a Truncated Drift. Methodology and Computing in Applied Probability. 8 (2), 235-254. 
+    (2) Atchadé, Y. (2009). Resampling from the past to improve on MCMC algorithms. FAR EAST JOURNAL OF THEORETICAL STATISTICS. 27 (1), 81-100. 
+       
     """
     optimalAcceptance = .574
     A1 = 1e7
@@ -322,7 +330,11 @@ class AmalaSampler(MultiChainSampler):
             reverseJumpLogPs[i] = pymc.distributions.mv_normal_cov_like(x = reverseJumpS[i,:], mu = zeros(self.dimensions), C = scaledOrientation )
             
         return reverseJumpLogPs
-
+    
+    
+    cached_transformation = None
+    cached_basis = None
+    
     def _truncate(self,vectors, gradLogPs, means, covariance, maxGradient):
 
         eigenvalues, eigenvectors = eigen(covariance)
@@ -344,14 +356,7 @@ class AmalaSampler(MultiChainSampler):
         scalings =  truncation /maximum(truncation, gradientNorms)
 
 
-        return scalings[:, newaxis] * gradLogPs, max(mean(scalings), .1)
-        #truncate by truncating each direction
-#        maxGrads =abs(maxGradient * transformedVectors)
-#        truncatedTransformedGradients = transformedGradients * maxGrads/maximum(maxGrads, abs(transformedGradients))
-#
-#        truncatedGradients = vectorsMult(transformation, truncatedTransformedGradients)
-#        return truncatedGradients
-        
+        return scalings[:, newaxis] * gradLogPs, max(mean(scalings), .1)   
 
 
     def _vectorsMult(self, matrix, vectors):

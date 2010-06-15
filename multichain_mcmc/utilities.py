@@ -7,6 +7,9 @@ import numpy
 
 def eigen(a, n = -1):
     
+    if len(a.shape) == 0: # if we got a 0-dimensional array we have to turn it back into a 2 dimensional one 
+        a = a[numpy.newaxis,numpy.newaxis]
+        
     if n == -1:
         n = a.shape[0]
         
