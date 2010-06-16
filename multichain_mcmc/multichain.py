@@ -391,14 +391,12 @@ class MultiChainStepper(StepMethod):
 
     def propose(self, proposalVector):
         # mostly from adaptive metropolist step method
-        
-        # Update each stochastic individually.
+
         for stochastic in self.stochastics:
             proposedValue = proposalVector[self._container.slices[str(stochastic)]]
             if iterable(stochastic.value):
-                proposedValue = np.reshape(proposalVector[self._container.slices[str(stochastic)]],np.shape(stochastic.value))
-            #if self.isdiscrete[stochastic]:
-            #    proposedValue = round_array(proposedValue)
+                proposedValue = np.reshape(proposedValue,np.shape(stochastic.value))
+
             stochastic.value = proposedValue
             
             

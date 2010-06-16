@@ -90,8 +90,6 @@ class AmalaSampler(MultiChainSampler):
         
         seedChainDraws = int(ceil(self.dimensions* 2/nChains) * nChains)
         history.record(self.draw_from_priors(seedChainDraws), zeros((self._nChains, seedChainDraws)), 0)
-        
-            
 
         # initilize the convergence diagnostic object
         grConvergence = GRConvergence()
@@ -146,7 +144,7 @@ class AmalaSampler(MultiChainSampler):
                 
                 try:
                     return -self._chains[i].logp
-                except ZeroProbability, ValueError:
+                except ZeroProbability:
                 
                     return 300e100
                     
@@ -168,6 +166,8 @@ class AmalaSampler(MultiChainSampler):
                 pass
             except:
                 self._chains[i].propose(x0)
+                
+        print self._vectors
         
         if not (initial_point is None):
              
@@ -335,15 +335,29 @@ class AmalaSampler(MultiChainSampler):
     cached_transformation = None
     cached_basis = None
     
+    
+    basis = None
+    transformation = None 
+    lastcalc = Inf 
     def _truncate(self,vectors, gradLogPs, means, covariance, maxGradient):
 
-        eigenvalues, eigenvectors = eigen(covariance)
-    
-    
-        # find the basis that will be uncorrelated using the covariance matrix
-        basis = (sqrt(eigenvalues)[newaxis,:] * eigenvectors).transpose()
-        #find the matrix that will transform a vector into that basis
-        transformation = linalg.inv(basis )
+
+        if self.lastcalc > 10:
+            eigenvalues, eigenvectors = eigen(covariance)
+        
+        
+            # find the basis that will be uncorrelated using the covariance matrix
+            basis = (sqrt(eigenvalues)[newaxis,:] * eigenvectors).transpose()
+            #find the matrix that will transform a vector into that basis
+            transformation = linalg.inv(basis )
+            self.lastcalc = 0
+            self.basis = basis
+            self.transformation = transformation 
+        else :
+            basis = self.basis 
+            transformation = self.transformation
+            
+            self.lastcalc += 1
         
         transformedGradients = vectorsMult(basis, gradLogPs)
         transformedVectors = vectorsMult(transformation, vectors - means)
