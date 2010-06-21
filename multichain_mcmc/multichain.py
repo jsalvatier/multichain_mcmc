@@ -64,11 +64,11 @@ class MultiChainSampler:
         gradLogPs = zeros((self._nChains, self.dimensions))
         
         for i in range(self._nChains):
-            grad_logps = self._chains[i].grad_logp
+            logp_gradients = self._chains[i].logp_gradient
             
-            for stochastic, grad_logp in grad_logps.iteritems():
+            for stochastic, logp_gradient in logp_gradients.iteritems():
                 
-                gradLogPs[i,self.slices[str(stochastic)]] = ravel(grad_logp)
+                gradLogPs[i,self.slices[str(stochastic)]] = ravel(logp_gradient)
 
         return gradLogPs
 
@@ -349,7 +349,7 @@ class MultiChain(MCMC):
     
     @property
     def grad_logp(self):
-        return self.multiChainStepper.grad_logp
+        return self.multiChainStepper.logp_gradient
         
     def reject(self):
         self.multiChainStepper.reject()

@@ -10,7 +10,7 @@ import multichain_mcmc
 from pylab import *
 
 sampler = multichain_mcmc.AmalaSampler(model1.model)
-sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100,  mConvergence = True,mAccept = True)
+sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100)
 
 
 print sampler.R

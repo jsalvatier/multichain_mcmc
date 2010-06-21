@@ -99,9 +99,23 @@ class SimulationHistory(object):
     def combined_history_logps(self):
         return self._logPHistory[(np.ceil(self.relevantHistoryStart) *self._nChains):(self.relevantHistoryEnd * self._nChains)]
     
+    
+    "complete histories"
+    
     @property
-    def all_combined_history(self):
-        return self.group_all_combined_history('all')
+    def complete_combined_history(self):
+        return self.group_complete_combined_history('all')
+    
+    def group_complete_sequence_histories(self, name):
+        return self._sequence_histories[:,self.group_indicies[name], 0:self.relevantHistoryEnd]   
+    
+    @property
+    def complete_sequence_histories(self):
+        return self.group_complete_sequence_histories('all')
+    
+    @property
+    def ncomplete_sequence_histories(self):
+        return self.complete_sequence_histories.shape[2]
         
-    def group_all_combined_history(self, name):
+    def group_complete_combined_history(self, name):
         return self._combined_history[0:(self.relevantHistoryEnd * self._nChains),self.group_indicies[name]]

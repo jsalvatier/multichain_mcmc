@@ -8,6 +8,7 @@ from pymc import *
 
 from numpy import *
 from convergence import GRConvergence, CovarianceConvergence
+from adaptation import AdaptedApproximation, AdaptedScale
 import scipy.optimize
 from multichain import MultiChainSampler, MultiChain
 import time 
@@ -41,7 +42,7 @@ class AmalaSampler(MultiChainSampler):
     
     acceptRatio = 0.0
     
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 3, adaptationDecayLength = 250, variables_of_interest = None, scaling = True,minScale = .1, maxGradient = 1.0, debug = Inf, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, mConvergence = False, mAccept = False):
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 3, adaptationDecayLength = 250, variables_of_interest = None, scaling = True,minScale = .1, maxGradient = 1.0, debug = Inf, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
         """
         Samples from a posterior distribution using DREAM.
         
@@ -94,7 +95,6 @@ class AmalaSampler(MultiChainSampler):
         # initilize the convergence diagnostic object
         grConvergence = GRConvergence()
         covConvergence = CovarianceConvergence()
-              
 
         
         #2)now loop through and sample 
@@ -112,28 +112,6 @@ class AmalaSampler(MultiChainSampler):
        
         lastRecalculation = 0
         
-#        logPs = history.combined_history_logps
-#        i = argmax(logPs)
-#        shiftedLogPs = history.combined_history_logps - logPs[i] + 10
-#        shiftedPs = exp(shiftedLogPs)
-#        normalizedPs = shiftedPs /sum(shiftedPs)
-#        
-#        weightedMeans = average(history.combined_history, axis = 0, weights = normalizedPs)
-#        weightedDeviances = (history.combined_history - weightedMeans[newaxis, :]) * normalizedPs[:, newaxis]
-#        weightedCovariance = cov(weightedDeviances.transpose())
-#        
-#        modifiedHistory = history.combined_history
-#        modifiedLogPs = history.combined_history_logps 
-#        
-#        currentVectors = zeros((self._nChains, self.dimensions))
-#        
-#        for i in range(self._nChains):
-#            j = argmax(modifiedLogPs)
-#            currentVectors[i, :] = modifiedHistory[i,:]
-#            modifiedHistory = delete(modifiedHistory, i, axis = 0)
-#            modifiedLogPs = delete(modifiedLogPs, i, axis = 0)
-#        
-        #self._propose(currentVectors)
         
         # try to find some approximate modes for starting the chain 
         for i in range(self._nChains):
@@ -152,7 +130,7 @@ class AmalaSampler(MultiChainSampler):
             
             def grad_logp(vector):
                 self._chains[i].propose(vector)
-                gradientd = self._chains[i].grad_logp
+                gradientd = self._chains[i].logp_gradient
                 gradient = empty(self.dimensions)
                 
                 for p, v in gradientd.iteritems():
@@ -176,13 +154,11 @@ class AmalaSampler(MultiChainSampler):
         currentVectors = self._vectors
         currentLogPs = self._logPs
         currentGradLogPs = self._gradLogPs     
-        
-        adaptedMean =  mean(history.combined_history, axis = 0) # weightedMeans
 
-        adaptedOrientation =  cov(history.combined_history.transpose()) #weightedCovariance
-
-        adaptedScale = 1.0
         adaptationConstant = min(self._nChains/(self.dimensions * samplesPerAdapatationParameter), 1)
+
+        adapted_approximation = AdaptedApproximation(mean(history.combined_history, axis = 0), cov(history.combined_history.transpose()))
+        adapted_scale = AdaptedScale(self.optimalAcceptance, minScale)
 
         accepts_ratio_weighting = 1 - exp(-1.0/30) 
         adaptationDecay = 1.0/adaptationDecayLength
@@ -195,7 +171,7 @@ class AmalaSampler(MultiChainSampler):
                     any(grConvergence.R > convergenceCriteria) or 
                     any(abs(covConvergence.relativeVariances['all']) > .5 ) or 
                     any(abs(covConvergence.relativeVariances['interest']) > .1)) and 
-                history.nsequence_histories < maxChainDraws - 1):
+                history.ncomplete_sequence_histories < maxChainDraws - 1):
             
             if iter  == burnIn:
                 history.start_sampling()
@@ -206,7 +182,7 @@ class AmalaSampler(MultiChainSampler):
                 proposalVectors = dream_components.dream2_proposals(currentVectors, history, self.dimensions, self._nChains, 2, array([1]),.05, 1e-9)
                 jumpLogPs = 0
             else:
-                proposalVectors, jumpLogPs = self._amala_proposals(currentVectors, currentGradLogPs,adaptedMean, adaptedOrientation, adaptedScale, maxGradient, iter %debug == 0)
+                proposalVectors, jumpLogPs = self._amala_proposals(currentVectors, currentGradLogPs, adapted_approximation, adapted_scale, maxGradient, iter %debug == 0)
                 
             self._propose(proposalVectors)
             proposalGradLogPs = self._gradLogPs
@@ -215,7 +191,7 @@ class AmalaSampler(MultiChainSampler):
             if dream_step:
                 reverseJumpLogPs = 0
             else:
-                reverseJumpLogPs = self._reverseJumpP(currentVectors, proposalVectors, proposalGradLogPs, adaptedMean, adaptedOrientation, adaptedScale, maxGradient)
+                reverseJumpLogPs = self._reverseJumpP(currentVectors, proposalVectors, proposalGradLogPs, adapted_approximation, adapted_scale, maxGradient)
                 
             #apply the metrop decision to decide whether to accept or reject each chain proposal        
             decisions, acceptance = self._metropolis_hastings(currentLogPs,proposalLogPs, jumpLogPs, reverseJumpLogPs) 
@@ -235,8 +211,8 @@ class AmalaSampler(MultiChainSampler):
             
             self._update_accepts_ratio(accepts_ratio_weighting, acceptance)
             
-            if mAccept and iter % 20 == 0:
-                print self.accepts_ratio, adaptedScale
+            if monitor_acceptence and iter % 20 == 0:
+                print "accepts ratio: ", self.accepts_ratio, " adapted scale: ", adapted_scale.scale
             
             self._reject(decisions)
     
@@ -257,19 +233,19 @@ class AmalaSampler(MultiChainSampler):
                 covConvergence.update(history, 'interest')
                 
                 
-                if mConvergence:
-                    print mean(grConvergence.R), std(grConvergence.R), max(grConvergence.R), argmax(grConvergence.R)
+                if monitor_convergence:
+                    print "GR mean: ", mean(grConvergence.R), "StdDev: ", std(grConvergence.R),"max: ", max(grConvergence.R),"argmax : ", argmax(grConvergence.R)
                     print covConvergence.relativeVariances['interest']
 
 
             if iter % thin == 0:
-                try:
-                    history.record(currentVectors, currentLogPs, .5)
-                except:
-                    print history.ncombined_history 
-                    break 
-                
-            adaptedMean, adaptedOrientation, adaptedScale = self._adapt(currentVectors,adaptationConstant * exp(-history.nsamples * adaptationDecay), acceptance, self.optimalAcceptance, adaptedMean, adaptedOrientation, adaptedScale, scaling, minScale) 
+                history.record(currentVectors, currentLogPs, .5)
+            
+            adaptation_rate = adaptationConstant * exp(-history.nsamples * adaptationDecay)
+            
+            adapted_approximation.update(currentVectors, adaptation_rate)
+            adapted_scale.update(acceptance, adaptation_rate)
+
             iter += 1
 
             
@@ -279,7 +255,7 @@ class AmalaSampler(MultiChainSampler):
         
         # only make the second half of draws available because that's the only part used by the convergence diagnostic
         self.samples = history.samples
-        self.history = history.all_combined_history
+        self.history = history.complete_combined_history
         self.iter = iter
         self.burnIn = burnIn 
         self.time = time.time() - startTime
@@ -288,14 +264,12 @@ class AmalaSampler(MultiChainSampler):
         
         self._finalizeChains()
             
-    def _amala_proposals(self, currentVectors, currentGradientLogPs, means, orientation, scale, maxGradient , debug):
+    def _amala_proposals(self, currentVectors, currentGradientLogPs, adapted_approximation, adapted_scale, maxGradient , debug):
         """
         generates and returns proposal vectors given the current states
         """
-        
-        adjustedOrientation = orientation + eye(self.dimensions) * self.e1 
-        scaledOrientation = adjustedOrientation * scale**2 
-        tGrad, shrink = self._truncate(currentVectors, currentGradientLogPs,means, adjustedOrientation, maxGradient)
+        scaledOrientation = adapted_approximation.orientation * adapted_scale.scale**2 
+        tGrad, shrink = self._truncate(currentVectors, currentGradientLogPs,adapted_approximation, maxGradient)
         drift = vectorsMult(scaledOrientation, tGrad /2)
         if debug:
             print "tGrad", tGrad
@@ -313,12 +287,10 @@ class AmalaSampler(MultiChainSampler):
         return proposalVectors, jumpLogPs
 
     
-    def _reverseJumpP(self, currentVectors, proposalVectors, proposalGradLogPs, means, orientation, scale, maxGradient):
+    def _reverseJumpP(self, currentVectors, proposalVectors, proposalGradLogPs, adapted_approximation, adapted_scale, maxGradient):
         
-        
-        adjustedOrientation = orientation + eye(self.dimensions) * self.e1 
-        scaledOrientation = adjustedOrientation * scale**2 
-        tGrad,shrink = self._truncate(currentVectors, proposalGradLogPs,means, adjustedOrientation, maxGradient)
+        scaledOrientation = adapted_approximation.orientation * adapted_scale.scale**2 
+        tGrad,shrink = self._truncate(currentVectors, proposalGradLogPs,adapted_approximation, maxGradient)
         drift = vectorsMult(scaledOrientation, tGrad /2)
         
         reverseJump = currentVectors - proposalVectors 
@@ -330,37 +302,11 @@ class AmalaSampler(MultiChainSampler):
             reverseJumpLogPs[i] = pymc.distributions.mv_normal_cov_like(x = reverseJumpS[i,:], mu = zeros(self.dimensions), C = scaledOrientation )
             
         return reverseJumpLogPs
-    
-    
-    cached_transformation = None
-    cached_basis = None
-    
-    
-    basis = None
-    transformation = None 
-    lastcalc = Inf 
-    def _truncate(self,vectors, gradLogPs, means, covariance, maxGradient):
 
-
-        if self.lastcalc > 10:
-            eigenvalues, eigenvectors = eigen(covariance)
+    def _truncate(self,vectors, gradLogPs, adapted_approximation, maxGradient):
         
-        
-            # find the basis that will be uncorrelated using the covariance matrix
-            basis = (sqrt(eigenvalues)[newaxis,:] * eigenvectors).transpose()
-            #find the matrix that will transform a vector into that basis
-            transformation = linalg.inv(basis )
-            self.lastcalc = 0
-            self.basis = basis
-            self.transformation = transformation 
-        else :
-            basis = self.basis 
-            transformation = self.transformation
-            
-            self.lastcalc += 1
-        
-        transformedGradients = vectorsMult(basis, gradLogPs)
-        transformedVectors = vectorsMult(transformation, vectors - means)
+        transformedGradients = vectorsMult(adapted_approximation.basis, gradLogPs)
+        transformedVectors = vectorsMult(adapted_approximation.transformation, vectors - adapted_approximation.location)
 
         # truncate by rescaling
         normalNorms =sum(transformedVectors**2, axis = 1)**.5
@@ -379,25 +325,3 @@ class AmalaSampler(MultiChainSampler):
         the "list" axis should be the first axis
         """
         return dot(matrix, vectors.transpose()[newaxis,:,:])[:,0].transpose()
-    
-    def _project(self, x):
-        
-        norm = sqrt(sum(x**2))
-        if norm < self.A1:
-            return x
-        else:
-            return x * self.A1 / norm
-        
-    def _adapt(self, currentVectors,adaptationRate, acceptance, optimalAcceptance, oldMean, oldOrientation, oldScale, scaling, minScale):
-        
-        newMean = self._project(oldMean + adaptationRate *  mean(currentVectors - oldMean, axis = 0))
-        newOrientation = self._project(oldOrientation + adaptationRate * (dot((currentVectors - oldMean).transpose(),currentVectors - oldMean)/self._nChains - oldOrientation) )
-        if scaling:
-            
-            newScale = self._project( oldScale *( 1  + adaptationRate * mean (acceptance - optimalAcceptance)))
-            newScale = max(newScale, minScale)
-        else :
-            newScale = 1.0
-
-
-        return newMean, newOrientation, newScale

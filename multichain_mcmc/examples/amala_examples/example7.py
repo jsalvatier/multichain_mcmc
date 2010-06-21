@@ -17,7 +17,7 @@ init = {'intercept' : model7.trueIntercept,
 variables_of_interest = ['intercept', 'sd']
 
 sampler = multichain_mcmc.AmalaSampler(model7.model_gen)
-sampler.sample(ndraw = 500,samplesPerAdapatationParameter = .5,adaptationDecayLength = 100, variables_of_interest = variables_of_interest, ndraw_max = 10000, maxGradient = 100, mAccept = True, mConvergence = True)
+sampler.sample(ndraw = 500,samplesPerAdapatationParameter = .5,adaptationDecayLength = 100, variables_of_interest = variables_of_interest, ndraw_max = 10000, maxGradient = 100)
 slices = sampler.slices
 
 print sampler.R

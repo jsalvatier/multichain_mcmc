@@ -12,7 +12,7 @@ from numpy import *
 from cPickle import *
 
 sampler = multichain_mcmc.AmalaSampler(model9.gen_model)
-sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100,  mConvergence = True,mAccept = True)
+sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100)
 
 
 print sampler.R
