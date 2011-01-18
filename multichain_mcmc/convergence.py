@@ -60,11 +60,11 @@ class GRConvergence:
 
         self._R = numpy.sqrt(varEstimate/ withinChainVariances)
         
-        self._WChange = numpy.abs(numpy.log(withinChainVariances /self._W)**.5)
         self._W = withinChainVariances
+        self._WChange = numpy.abs(numpy.log(withinChainVariances /self._W)**.5)
         
-        self._VChange = numpy.abs(numpy.log(varEstimate /self._V)**.5)
         self._V = varEstimate
+        self._VChange = numpy.abs(numpy.log(varEstimate /self._V)**.5)
         
 class CovarianceConvergence:
     """
