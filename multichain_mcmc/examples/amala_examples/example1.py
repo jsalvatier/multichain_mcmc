@@ -3,12 +3,14 @@ Created on Nov 24, 2009
 
 @author: johnsalvatier
 '''
+
 import model1
 
 import pymc 
 import multichain_mcmc
 from pylab import *
-
+import numpy
+numpy.seterr(all = 'raise', over = 'ignore', under ='ignore')
 sampler = multichain_mcmc.AmalaSampler(model1.model)
 sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100)
 

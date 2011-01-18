@@ -24,9 +24,9 @@ MAINTAINER          = 'John Salvatier'
 MAINTAINER_EMAIL    = "jsalvati@u.washington.edu"
 URL                 = "pypi.python.org/pypi/multichain_mcmc"
 LICENSE             = "BSD"
-VERSION             = "0.2.3"
+VERSION             = "0.3"
 
-classifiers =  ['Development Status :: 2 - Pre-Alpha',
+classifiers =  ['Development Status :: 3 - Alpha',
                 'Programming Language :: Python',
                 'License :: OSI Approved :: BSD License',
                 'Intended Audience :: Science/Research',
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         long_description = LONG_DESCRIPTION,
         packages = ['multichain_mcmc'], 
         classifiers =classifiers,
-        #install_requires=["pymc >= 2.1alpha", "numpy >= 1.2",'scipy >= 0.7', 'cython'],
+        install_requires=['pymc', 'numpy','scipy', 'cython'],
         cmdclass = {'build_ext': build_ext},
         ext_modules = [Extension("multichain_mcmc.rand_no_replace", ["multichain_mcmc/rand_no_replace.pyx"])])
 

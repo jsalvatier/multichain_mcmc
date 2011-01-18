@@ -42,9 +42,8 @@ class AmalaSampler(MultiChainSampler):
     
     acceptRatio = 0.0
     
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 3, adaptationDecayLength = 250, variables_of_interest = None, scaling = True,minScale = .1, maxGradient = 1.0, debug = Inf, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
-        """
-        Samples from a posterior distribution using DREAM.
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 3, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, debug = Inf, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
+        """Samples from a posterior distribution using Adaptive Metropolis Adjusted Langevin Algorithm (AMALA).
         
         Parameters
         ----------
@@ -56,6 +55,13 @@ class AmalaSampler(MultiChainSampler):
             number of different chains to employ
         burnInSize : int
             number of iterations (meaning draws / nChains) to do before doing actual sampling.
+        minimum_scale : float
+            the minimum that the scaling constant can fall to (default .1)
+        monitor_convergence : bool
+            determines whether to periodically print out convergence statistics (True)
+        monitor_acceptence : bool
+            determines whether to periodically print out the average acceptance ratio and adapted scale 
+        initial_point : dictionary  
             
         Returns
         -------
@@ -115,7 +121,6 @@ class AmalaSampler(MultiChainSampler):
         
         # try to find some approximate modes for starting the chain 
         for i in range(self._nChains):
-            
             x0 = self._chains[i].vector
             def logp(vector):
                 self._chains[i].propose(vector)
@@ -144,8 +149,6 @@ class AmalaSampler(MultiChainSampler):
                 pass
             except:
                 self._chains[i].propose(x0)
-                
-        print self._vectors
         
         if not (initial_point is None):
              
@@ -158,7 +161,7 @@ class AmalaSampler(MultiChainSampler):
         adaptationConstant = min(self._nChains/(self.dimensions * samplesPerAdapatationParameter), 1)
 
         adapted_approximation = AdaptedApproximation(mean(history.combined_history, axis = 0), cov(history.combined_history.transpose()))
-        adapted_scale = AdaptedScale(self.optimalAcceptance, minScale)
+        adapted_scale = AdaptedScale(self.optimalAcceptance, minimum_scale)
 
         accepts_ratio_weighting = 1 - exp(-1.0/30) 
         adaptationDecay = 1.0/adaptationDecayLength
@@ -167,22 +170,25 @@ class AmalaSampler(MultiChainSampler):
         # 1) we have not drawn enough samples to satisfy the minimum number of iterations
         # 2) or any of the dimensions have not converged 
         # 3) and we have not done more than the maximum number of iterations 
+
         while (( history.nsamples < ndraw or 
                     any(grConvergence.R > convergenceCriteria) or 
                     any(abs(covConvergence.relativeVariances['all']) > .5 ) or 
                     any(abs(covConvergence.relativeVariances['interest']) > .1)) and 
                 history.ncomplete_sequence_histories < maxChainDraws - 1):
-            
+
             if iter  == burnIn:
                 history.start_sampling()
 
             dream_step = (random.randint(30) == 0)
-            
             if dream_step:
+
                 proposalVectors = dream_components.dream2_proposals(currentVectors, history, self.dimensions, self._nChains, 2, array([1]),.05, 1e-9)
                 jumpLogPs = 0
             else:
+
                 proposalVectors, jumpLogPs = self._amala_proposals(currentVectors, currentGradLogPs, adapted_approximation, adapted_scale, maxGradient, iter %debug == 0)
+
                 
             self._propose(proposalVectors)
             proposalGradLogPs = self._gradLogPs
@@ -195,7 +201,6 @@ class AmalaSampler(MultiChainSampler):
                 
             #apply the metrop decision to decide whether to accept or reject each chain proposal        
             decisions, acceptance = self._metropolis_hastings(currentLogPs,proposalLogPs, jumpLogPs, reverseJumpLogPs) 
-                
                 
             if iter % debug == 0 :
                 print "c", currentVectors
@@ -222,8 +227,7 @@ class AmalaSampler(MultiChainSampler):
 
             currentLogPs = choose(decisions, (currentLogPs, proposalLogPs))
             currentGradLogPs = choose(decisions[:, newaxis], (currentGradLogPs, proposalGradLogPs))
-            
-                    
+      
             # we only want to recalculate convergence criteria when we are past the burn in period
             if history.nsamples > ndraw and iter > lastRecalculation * 1.1:
 
@@ -242,7 +246,6 @@ class AmalaSampler(MultiChainSampler):
                 history.record(currentVectors, currentLogPs, .5)
             
             adaptation_rate = adaptationConstant * exp(-history.nsamples * adaptationDecay)
-            
             adapted_approximation.update(currentVectors, adaptation_rate)
             adapted_scale.update(acceptance, adaptation_rate)
 
@@ -275,17 +278,18 @@ class AmalaSampler(MultiChainSampler):
             print "tGrad", tGrad
             print "orientation ", scaledOrientation
             print "mean p ", currentVectors + drift
+        
 
         s = random.multivariate_normal(mean = zeros(self.dimensions) ,cov = scaledOrientation, size = self._nChains)
-        
+
         proposalVectors = currentVectors + drift + s
 
         jumpLogPs = zeros(self._nChains)
         for i in range(self._nChains):
+
             jumpLogPs[i] = pymc.distributions.mv_normal_cov_like(x = s[i,:], mu = zeros(self.dimensions), C = scaledOrientation )
             
         return proposalVectors, jumpLogPs
-
     
     def _reverseJumpP(self, currentVectors, proposalVectors, proposalGradLogPs, adapted_approximation, adapted_scale, maxGradient):
         
