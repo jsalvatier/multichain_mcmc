@@ -345,7 +345,7 @@ class MultiChain(MCMC):
     
     @property
     def logp(self):
-        self.multiChainStepper.logp_plus_loglike
+        return self.multiChainStepper.logp_plus_loglike
     @property
     def logp_gradient(self):
         return self.multiChainStepper.logp_gradient
