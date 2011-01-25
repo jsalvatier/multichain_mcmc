@@ -18,6 +18,7 @@ class AdaptedApproximation:
     
     def __init__(self, initial_location, initial_orientation):
         
+        initial_orientation = atleast_2d(initial_orientation)
         self.location = initial_location
         self._orientation = initial_orientation
         

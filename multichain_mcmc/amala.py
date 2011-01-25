@@ -29,8 +29,8 @@ class AmalaSampler(MultiChainSampler):
     down sampling, so we try to do this mostly near the beginning of sampling. Convergence assessment is 
     based on a naive implementation of the Gelman-Rubin convergence statistics.
     
-    (1) Atchadé, Y. (2006). An Adaptive Version for the Metropolis Adjusted Langevin Algorithm with a Truncated Drift. Methodology and Computing in Applied Probability. 8 (2), 235-254. 
-    (2) Atchadé, Y. (2009). Resampling from the past to improve on MCMC algorithms. FAR EAST JOURNAL OF THEORETICAL STATISTICS. 27 (1), 81-100. 
+    (1) Atchade, Y. (2006). An Adaptive Version for the Metropolis Adjusted Langevin Algorithm with a Truncated Drift. Methodology and Computing in Applied Probability. 8 (2), 235-254. 
+    (2) Atchade, Y. (2009). Resampling from the past to improve on MCMC algorithms. FAR EAST JOURNAL OF THEORETICAL STATISTICS. 27 (1), 81-100. 
        
     """
     optimalAcceptance = .574
@@ -127,8 +127,8 @@ class AmalaSampler(MultiChainSampler):
                 
                 try:
                     return -self._chains[i].logp
+
                 except ZeroProbability:
-                
                     return 300e100
                     
             
@@ -140,15 +140,11 @@ class AmalaSampler(MultiChainSampler):
                 
                 for p, v in gradientd.iteritems():
                     gradient[self.slices[str(p)]] = -ravel(v)
-                
+
                 return gradient
             
-            mode = scipy.optimize.fmin_ncg(logp, x0, grad_logp, disp = False)
+            mode = scipy.optimize.fmin_ncg(logp, x0, grad_logp, disp = True)
             self._chains[i].propose(mode)
-            try:
-                pass
-            except:
-                self._chains[i].propose(x0)
         
         if not (initial_point is None):
              
