@@ -143,7 +143,7 @@ class AmalaSampler(MultiChainSampler):
 
                 return gradient
             
-            mode = scipy.optimize.fmin_ncg(logp, x0, grad_logp, disp = True)
+            mode = scipy.optimize.fmin_ncg(logp, x0, grad_logp, disp = False)
             self._chains[i].propose(mode)
         
         if not (initial_point is None):
