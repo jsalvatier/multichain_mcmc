@@ -307,7 +307,7 @@ class MultiChain(MCMC):
         # Tell all the step methods except the DREAM StepMethod to take a step (dream step method has already stepped)
         for step_method in self.step_methods:
             
-            if step_method != multiChainStepper  : 
+            if step_method != self.multiChainStepper  : 
                 if self.verbose > 2:
                     print 'Step method %s stepping' % step_method._id
                 # Step the step method
@@ -345,8 +345,7 @@ class MultiChain(MCMC):
     
     @property
     def logp(self):
-        return self.multiChainStepper.logp_plus_loglike
-    
+        self.multiChainStepper.logp_plus_loglike
     @property
     def logp_gradient(self):
         return self.multiChainStepper.logp_gradient
