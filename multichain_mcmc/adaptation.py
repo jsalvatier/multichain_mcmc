@@ -14,7 +14,7 @@ class AdaptedApproximation:
     basis = None
 
     A1 = 1e7
-    e1 = 1e-5
+    e1 = 0
     
     def __init__(self, initial_location, initial_orientation):
         
@@ -35,9 +35,11 @@ class AdaptedApproximation:
         oldOrientation = self._orientation
         
         self.location = project(oldMean + adaptation_rate *  mean(currentVectors - oldMean, axis = 0), self.A1)
-        self._orientation = project(oldOrientation + adaptation_rate * (dot((currentVectors - oldMean).transpose(),currentVectors - oldMean)/self._n - oldOrientation), self.A1 )
         
+        self._orientation = project(oldOrientation + adaptation_rate * (dot((currentVectors - oldMean).transpose(),currentVectors - oldMean)/self._n - oldOrientation), self.A1 )
+            
         self._update_orientation(self._orientation)
+        
         
     _last_calc = Inf
     def _update_orientation(self, orientation):
