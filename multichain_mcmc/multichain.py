@@ -17,7 +17,7 @@ class MultiChainSampler:
     """
     dimensions = None
     slices = None
-    accepts_ratio = 0
+    accepts_ratio = .5
     
     _model_generator = None
     _chains = []
@@ -60,7 +60,7 @@ class MultiChainSampler:
                 self.dimensions += p_len
     
     @property
-    def _gradLogPs(self):
+    def logp_grads(self):
         gradLogPs = zeros((self._nChains, self.dimensions))
         
         for i in range(self._nChains):
@@ -76,18 +76,16 @@ class MultiChainSampler:
     def _nChains(self):
         return len(self._chains)
     
+    _vectors = None
     @property
-    def _vectors(self):
-
-        vectors = zeros((self._nChains, self.dimensions))
-        
-        for i  in range(self._nChains): 
-            vectors[i, :] = self._chains[i].vector   
-        
-        return vectors
+    def vectors(self):
+        if self._vectors is None: 
+            self._vectors = array([c.vector for c in self._chains])
+            
+        return self._vectors
     
     @property
-    def _logPs (self):
+    def logps (self):
         logPs = zeros(self._nChains)
         
         for i in range(self._nChains):
@@ -98,28 +96,29 @@ class MultiChainSampler:
                 logPs[i] = -Inf
                 
         return logPs
-
-        
     
-    def _propose(self, proposalVectors):
+    def propose(self, proposalVectors):
         
         for i in range(self._nChains):
             self._chains[i].propose(proposalVectors[i, :]) 
+        self._vectors = None
             
-    def _metropolis_hastings(self, currentLogPs, proposalLogPs, jumpLogP = 0, reverseJumpLogP = 0):
+    def metropolis_hastings(self, currentLogPs, proposalLogPs, jumpLogP = 0, reverseJumpLogP = 0):
         """
         makes a decision about whether the proposed vector should be accepted
         """
         logMetropHastRatio = (proposalLogPs - currentLogPs) + (reverseJumpLogP - jumpLogP)
-
-        decision = log(random.uniform(size = self._nChains)) < logMetropHastRatio
-
-        return decision, minimum(1, exp(logMetropHastRatio))
+        logMetropHastRatio[logical_not(isfinite(logMetropHastRatio))] = 0.0
+        self.reject(log(random.uniform(size = self._nChains)) < logMetropHastRatio)
+        
+        self._vectors = None
+        return minimum(1, exp(logMetropHastRatio))
     
-    def _reject(self, decisions):
+    def reject(self, decisions):
         
         for i in range(self._nChains):
             if decisions[i] == False:
+                
                 self._chains[i].reject()
 
     def _initChains(self, nChains, ndraw_max):
@@ -132,7 +131,7 @@ class MultiChainSampler:
             self._chains.append(chain)  
             
                 
-    def _finalizeChains(self):
+    def finalize_chains(self):
         
         for i in range(self._nChains):
             self._chains[i].sampleFinalize()
@@ -404,7 +403,3 @@ class MultiChainStepper(StepMethod):
         for stochastic in self.stochastics:
             stochastic.revert()
             
-            
-
-
-    

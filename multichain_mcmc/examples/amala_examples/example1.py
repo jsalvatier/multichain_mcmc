@@ -10,7 +10,9 @@ import pymc
 import multichain_mcmc
 from pylab import *
 import numpy
-numpy.seterr(all = 'raise', over = 'ignore', under ='ignore')
+import pydevd
+pydevd.set_pm_excepthook()
+
 sampler = multichain_mcmc.AmalaSampler(model1.model)
 sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100)
 

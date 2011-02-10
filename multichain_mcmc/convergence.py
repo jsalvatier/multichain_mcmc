@@ -16,15 +16,18 @@ class GRConvergence:
     version found in the first paper. It does not check to see whether the variances have been
     stabilizing so it may be misleading sometimes.
     """
+    
+    def __init__ (self, convergence_criteria, history, group ='all'):
+        self.convergence_criteria = convergence_criteria
+        self.history = history
+        self.group   = group
+    
     _R = numpy.Inf
     _V = numpy.Inf
     _VChange = numpy.Inf
     
     _W = numpy.Inf
     _WChange = numpy.Inf
-    
-    def __init__(self):
-        pass
     
     def _get_R(self):
         return self._R
@@ -39,14 +42,14 @@ class GRConvergence:
     def WChange(self):
         return self._WChange
     
-    def update(self, history):
+    def update(self):
         """
         Updates the convergence diagnostic with the current history.
         """
         
-        N = history.nsequence_histories
+        N = self.history.nsequence_histories
         
-        sequences = history.sequence_histories
+        sequences = self.history.sequence_histories
 
         variances  = numpy.var(sequences,axis = 2)
 
@@ -66,25 +69,30 @@ class GRConvergence:
         self._V = varEstimate
         self._VChange = numpy.abs(numpy.log(varEstimate /self._V)**.5)
         
-class CovarianceConvergence:
-    """
-    """
-    relativeVariances = {}
+    def converged(self):
+        return all(abs(log(self._R)) < self.convergence_criteria)
     
-    def update(self, history, group):
+    def state(self):
+        return str(log(self._R))
         
-        relevantHistory = history.group_combined_history(group)
+class CovarianceConvergence:
 
-
-        self.relativeVariances[group] = self.rv(relevantHistory)
-     
-    @staticmethod   
-    def rv(relevantHistory):  
-        end = relevantHistory.shape[0]
+    relative_scales = Inf
+    
+    def __init__(self, convergence_criteria, history, group = 'all' ):
+        self.history = history
+        self.group   = group
+        self.convergence_criteria = convergence_criteria
+    
+    def update(self):
+        
+        relevant_history = self.history.group_combined_history(self.group)
+        
+        end = relevant_history.shape[0]
         midpoint = floor(end/2)
         
-        covariance1 = numpy.cov(relevantHistory[0:midpoint, :].transpose())
-        covariance2 = numpy.cov(relevantHistory[midpoint:end, :].transpose())
+        covariance1 = numpy.cov(relevant_history[0:midpoint, :].transpose())
+        covariance2 = numpy.cov(relevant_history[midpoint:end, :].transpose())
 
         eigenvalues1, eigenvectors1 = eigen(covariance1)
         basis1 = (sqrt(eigenvalues1)[newaxis,:] * eigenvectors1)
@@ -96,16 +104,11 @@ class CovarianceConvergence:
         projection = dot(linalg.inv(basis1), basis2)
         
         # find the releative size in each of the basis1 directions 
-        return log(sum(projection**2, axis = 0)**.5) 
+        self.relative_scales = log(sum(projection**2, axis = 0)**.5) 
     
-    @staticmethod
-    def compare_cov(d, cov1, n1, cov2, n2):
-        n = n1 + n2
-        k = 2
-        pooledWithinCov = (cov1*(n1 - 1) + cov2*(n2 -1))/(n - k)
-        
-        M = (n - k) * log (det(pooledWithinCov))  - (n1 - 1) * log(det(cov1)) - (n2 - 1) * log(det(cov2))
-        h = 1 - (2 * d**2 + 3*d - 1)/(6 *(p+1)*(k-1)) * ( 1/(n1 - 1) + 1/(n2 -1)     - 1/(n - k))
-        df = d * (d+1) *(k-1) /2
-        
-        return df, M * h
+    def converged(self):
+        return all(abs(self.relative_scales) < self.convergence_criteria)
+    
+    def state(self):
+        return "relative scales: " + str(self.relative_scales)
+    

@@ -13,8 +13,9 @@ import scipy.optimize
 from multichain import MultiChainSampler, MultiChain
 import time 
 import dream_components
-from utilities import vectorsMult, eigen 
+from utilities import vectorsMult, eigen,truncate_gradient
 from simulation_history import *
+from mode_finding import find_mode
 
 class AmalaSampler(MultiChainSampler):
     """
@@ -79,12 +80,7 @@ class AmalaSampler(MultiChainSampler):
         
         maxChainDraws = floor(ndraw_max/nChains)        
         self._initChains(nChains, ndraw_max)   
-        
-        # get the starting log likelihood and position for each of the chains 
-        #currentVectors = self._vectors
 
- 
-        #initialize the history arrays  
         history = SimulationHistory(maxChainDraws,self._nChains, self.dimensions)
         
         if variables_of_interest is not None:
@@ -93,75 +89,30 @@ class AmalaSampler(MultiChainSampler):
                 slices.append(self.slices[var])
         else:
             slices = [slice(None,None)]
+            
+            
         history.add_group('interest', slices)
-        
-        seedChainDraws = int(ceil(self.dimensions* 2/nChains) * nChains)
-        history.record(self.draw_from_priors(seedChainDraws), zeros((self._nChains, seedChainDraws)), 0)
+
 
         # initilize the convergence diagnostic object
-        grConvergence = GRConvergence()
-        covConvergence = CovarianceConvergence()
-
         
-        #2)now loop through and sample 
+        convergence_diagnostics = [GRConvergence(.1, history),
+                                   CovarianceConvergence(.3, history),
+                                   CovarianceConvergence(.2, history, 'interest')]
         
-        minDrawIters = ceil(ndraw / nChains)
-        maxIters = ceil(ndraw_max /nChains)
-        
+        monitor_diagnostics = [convergence_diagnostics[0], convergence_diagnostics[2]]     
         
         iter = 1
-    
-        proposalVectors = 0
-        reverseJumpLogPs = 0
-        jumpLogPs = 0
-        proposalGradLogPs = 0
-       
+
         lastRecalculation = 0
-        
-        
+               
         # try to find some approximate modes for starting the chain 
-        for i in range(self._nChains):
-            x0 = self._chains[i].vector
-            def logp(vector):
-                self._chains[i].propose(vector)
-                
-                try:
-                    return  -self._chains[i].logp
-
-                    
-                except ZeroProbability:
-                    return 300e100
-            
-            def grad_logp(vector):
-                self._chains[i].propose(vector)
-                
-                try:
-                    self._chains[i].logp 
-                except ZeroProbability:
-                    return zeros(self.dimensions)
-                
-                gradientd = self._chains[i].logp_gradient
-                gradient = empty(self.dimensions)
-                
-                for p, v in gradientd.iteritems():
-                    gradient[self.slices[str(p)]] = -ravel(v)
-
-                return gradient
-            
-            mode = scipy.optimize.fmin_ncg(logp, x0, grad_logp, disp = False)
-            self._chains[i].propose(mode)
-        
-        if not (initial_point is None):
-             
-            self._propose_initial_point(initial_point)
-        
-        currentVectors = self._vectors
-        currentLogPs = self._logPs
-        currentGradLogPs = self._gradLogPs     
+        for chain in self._chains:
+            inv_hessian = find_mode(self,chain)    
 
         adaptationConstant = min(self._nChains/(self.dimensions * samplesPerAdapatationParameter), 1)
 
-        adapted_approximation = AdaptedApproximation(mean(history.combined_history, axis = 0), cov(history.combined_history.transpose()))
+        adapted_approximation = AdaptedApproximation(self._chains[1].vector, inv_hessian)
         adapted_scale = AdaptedScale(self.optimalAcceptance, minimum_scale)
 
         accepts_ratio_weighting = 1 - exp(-1.0/30) 
@@ -172,143 +123,69 @@ class AmalaSampler(MultiChainSampler):
         # 2) or any of the dimensions have not converged 
         # 3) and we have not done more than the maximum number of iterations 
 
-        while (( history.nsamples < ndraw or 
-                    any(grConvergence.R > convergenceCriteria) or 
-                    any(abs(covConvergence.relativeVariances['all']) > .5 ) or 
-                    any(abs(covConvergence.relativeVariances['interest']) > .1)) and 
+        while ( (history.nsamples < ndraw or 
+                not all((diagnostic.converged() for diagnostic in convergence_diagnostics))) and 
                 history.ncomplete_sequence_histories < maxChainDraws - 1):
 
             if iter  == burnIn:
                 history.start_sampling()
 
-            dream_step = (random.randint(30) == 0)
-            if dream_step:
+            current_logps = self.logps
 
-                proposalVectors = dream_components.dream2_proposals(currentVectors, history, self.dimensions, self._nChains, 2, array([1]),.05, 1e-9)
-                jumpLogPs = 0
-            else:
-
-                proposalVectors, jumpLogPs = self._amala_proposals(currentVectors, currentGradLogPs, adapted_approximation, adapted_scale, maxGradient)
-                
-            self._propose(proposalVectors)
-            proposalGradLogPs = self._gradLogPs
-            proposalLogPs = self._logPs
-           
-            if dream_step:
-                reverseJumpLogPs = 0
-            else:
-                reverseJumpLogPs = self._reverseJumpP(currentVectors, proposalVectors, proposalGradLogPs, adapted_approximation, adapted_scale, maxGradient)
-                
-            #apply the metrop decision to decide whether to accept or reject each chain proposal        
-            decisions, acceptance = self._metropolis_hastings(currentLogPs,proposalLogPs, jumpLogPs, reverseJumpLogPs) 
+            jump_logp, reverse_logp = propose_amala(self,adapted_approximation, adapted_scale, maxGradient)
+   
+            acceptance = self.metropolis_hastings(current_logps,self.logps, jump_logp, reverse_logp) 
                 
             self._update_accepts_ratio(accepts_ratio_weighting, acceptance)
             
             if monitor_acceptence and iter % 20 == 0:
                 print "accepts ratio: ", self.accepts_ratio, " adapted scale: ", adapted_scale.scale
-            
-            self._reject(decisions)
-    
-            #make the current vectors the previous vectors 
-            previousVectors = currentVectors
-            currentVectors = choose(decisions[:,newaxis], (currentVectors, proposalVectors))
-
-            currentLogPs = choose(decisions, (currentLogPs, proposalLogPs))
-            currentGradLogPs = choose(decisions[:, newaxis], (currentGradLogPs, proposalGradLogPs))
       
-            # we only want to recalculate convergence criteria when we are past the burn in period
-            if history.nsamples > ndraw and iter > lastRecalculation * 1.1:
+      
+            if history.nsamples > ndraw and history.nsamples > lastRecalculation * 1.1:
 
-                lastRecalculation = iter
-                grConvergence.update(history)
-                covConvergence.update(history,'all')
-                covConvergence.update(history, 'interest')
+                lastRecalculation = history.nsamples
                 
+                for diagnostic in convergence_diagnostics:
+                    diagnostic.update()
                 
-                if monitor_convergence:
-                    print "GR mean: ", mean(grConvergence.R), "StdDev: ", std(grConvergence.R),"max: ", max(grConvergence.R),"argmax : ", argmax(grConvergence.R)
-                    print covConvergence.relativeVariances['interest']
+                for diagnostic in monitor_diagnostics:
+                    print diagnostic.state()
 
 
             if iter % thin == 0:
-                history.record(currentVectors, currentLogPs, .5)
+                history.record(self.vectors, self.logps, .5)
             
             adaptation_rate = adaptationConstant * exp(-history.nsamples * adaptationDecay)
-            adapted_approximation.update(currentVectors, adaptation_rate)
+            adapted_approximation.update(self.vectors, adaptation_rate)
             adapted_scale.update(acceptance, adaptation_rate)
 
             iter += 1
 
+        self.finalize_chains()
+        
+        return history , time.time() - startTime
             
-            
+    
+def propose_amala(chains, adapted_approximation, adapted_scale, maxGradient):
+    
+    scaledOrientation = adapted_approximation.orientation * adapted_scale.scale**2 
+    
+    def drift(x, gradient):
+        return vectorsMult(scaledOrientation, truncate_gradient(x, gradient,adapted_approximation, maxGradient) /2)
+    
+    def jump_logp (jump):
+        return array([pymc.distributions.mv_normal_cov_like(x = jump[i,:], mu = zeros(chains.dimensions), C = scaledOrientation) for i in range(jump.shape[0])])
         
-        #3) finalize
-        
-        # only make the second half of draws available because that's the only part used by the convergence diagnostic
-        self.samples = history.samples
-        self.history = history.complete_combined_history
-        self.iter = iter
-        self.burnIn = burnIn 
-        self.time = time.time() - startTime
-         
-        self.R = grConvergence.R
-        
-        self._finalizeChains()
-            
-    def _amala_proposals(self, currentVectors, currentGradientLogPs, adapted_approximation, adapted_scale, maxGradient):
-        """
-        generates and returns proposal vectors given the current states
-        """
-        scaledOrientation = adapted_approximation.orientation * adapted_scale.scale**2 
-        tGrad, shrink = self._truncate(currentVectors, currentGradientLogPs,adapted_approximation, maxGradient)
-        drift = vectorsMult(scaledOrientation, tGrad /2)
-        
-
-        s = random.multivariate_normal(mean = zeros(self.dimensions) ,cov = scaledOrientation, size = self._nChains)
-
-        proposalVectors = currentVectors + drift + s
-
-        jumpLogPs = zeros(self._nChains)
-        for i in range(self._nChains): 
-            jumpLogPs[i] = pymc.distributions.mv_normal_cov_like(x = s[i,:], mu = zeros(self.dimensions), C = scaledOrientation )
-           
-        return proposalVectors,  jumpLogPs
     
     
-    def _reverseJumpP(self, currentVectors, proposalVectors, proposalGradLogPs, adapted_approximation, adapted_scale, maxGradient):
-        
-        scaledOrientation = adapted_approximation.orientation * adapted_scale.scale**2 
-        tGrad,shrink = self._truncate(proposalVectors, proposalGradLogPs,adapted_approximation, maxGradient)
-        drift = vectorsMult(scaledOrientation, tGrad /2)
-        
-        reverseJump = currentVectors - proposalVectors 
-        reverseJumpS = reverseJump - drift
-        
-
-        reverseJumpLogPs = zeros(self._nChains)
-        for i in range(self._nChains):
-            reverseJumpLogPs[i] = pymc.distributions.mv_normal_cov_like(x = reverseJumpS[i,:], mu = zeros(self.dimensions), C = scaledOrientation )
-       
-        return reverseJumpLogPs
-
-    def _truncate(self,vectors, gradLogPs, adapted_approximation, maxGradient):
-        
-        transformedGradients = vectorsMult(adapted_approximation.basis, gradLogPs)
-        transformedVectors = vectorsMult(adapted_approximation.transformation, vectors - adapted_approximation.location)
-
-        # truncate by rescaling
-        normalNorms =sum(transformedVectors**2, axis = 1)**.5
-        gradientNorms = sum(transformedGradients**2, axis = 1)**.5
-
-        truncation = maxGradient * normalNorms
-        scalings =  truncation /maximum(truncation, gradientNorms)
-        
-        return scalings[:, newaxis] * gradLogPs, max(mean(scalings), .1)   
-
-
-    def _vectorsMult(self, matrix, vectors):
-        """
-        multiply a matrix by a list of vectors which should result in another list of vectors 
-        the "list" axis should be the first axis
-        """
-        return dot(matrix, vectors.transpose()[newaxis,:,:])[:,0].transpose()
+    forward_jump = (drift(chains.vectors, chains.logp_grads) +
+                 random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = scaledOrientation, size = chains._nChains))
+    
+    
+    chains.propose(chains.vectors + forward_jump)
+    
+    backward_jump = - forward_jump - drift(chains.vectors, chains.logp_grads)
+    
+    return jump_logp(forward_jump), jump_logp(backward_jump)
+    

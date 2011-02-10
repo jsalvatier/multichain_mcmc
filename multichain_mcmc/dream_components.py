@@ -7,7 +7,7 @@ from numpy import array, newaxis, random, sum, arange, floor
 from rand_no_replace import random_no_replace
 
 
-def dream_proposals( currentVectors, history, dimensions, nChains, DEpairs, gamma, jitter, eps ):
+def propose_dream( currentVectors, history, dimensions, nChains, DEpairs, gamma, jitter, eps ):
     """
     generates and returns proposal vectors given the current states
     """
@@ -36,7 +36,7 @@ def dream_proposals( currentVectors, history, dimensions, nChains, DEpairs, gamm
 
 
 
-def dream2_proposals( currentVectors, history, dimensions, nChains, DEpairs, gamma, jitter, eps ):
+def propose_dream2( currentVectors, history, dimensions, nChains, DEpairs, gamma, jitter, eps ):
     """
     generates and returns proposal vectors given the current states
     """

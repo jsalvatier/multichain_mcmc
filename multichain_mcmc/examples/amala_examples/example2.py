@@ -9,8 +9,11 @@ import pymc
 import multichain_mcmc
 from pylab import *
 
+import pydevd
+pydevd.set_pm_excepthook()
+
 sampler = multichain_mcmc.AmalaSampler(model2.model)
-sampler.sample(nChains = 5,ndraw = 500,samplesPerAdapatationParameter = .5,adaptationDecayLength = 100,  thin = 5)
+sampler.sample(nChains = 5,ndraw = 500,samplesPerAdapatationParameter = 10,adaptationDecayLength = 100,  thin = 5)
 
 
 print sampler.R
