@@ -84,8 +84,8 @@ class CovarianceConvergence:
         midpoint = floor(end/2)
         
         covariance1 = numpy.cov(relevantHistory[0:midpoint, :].transpose())
-        covariance2 = numpy.cov(relevantHistory[midpoint:end, :].transpose())
-
+        covariance2 = numpy.cov(relevantHistory[midpoint:end   , :].transpose())
+        
         eigenvalues1, eigenvectors1 = eigen(covariance1)
         basis1 = (sqrt(eigenvalues1)[newaxis,:] * eigenvectors1)
         

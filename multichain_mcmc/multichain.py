@@ -111,8 +111,10 @@ class MultiChainSampler:
         makes a decision about whether the proposed vector should be accepted
         """
         logMetropHastRatio = (proposalLogPs - currentLogPs) + (reverseJumpLogP - jumpLogP)
-
+        
+        
         decision = log(random.uniform(size = self._nChains)) < logMetropHastRatio
+        assert not any(isnan(minimum(1, exp(logMetropHastRatio))))
 
         return decision, minimum(1, exp(logMetropHastRatio))
     

@@ -18,7 +18,7 @@ def model():
     
     varlist = []
     
-    sd =pymc.Uniform('sd', lower = 5, upper = 100) #pymc.Gamma("sd", 60 , beta =  2.0)
+    sd =pymc.Uniform('sd', lower = 5, upper = 100, value = 55.0) #pymc.Gamma("sd", 60 , beta =  2.0)
     varlist.append(sd)
     
     
@@ -26,8 +26,8 @@ def model():
 
     
     
-    a = pymc.Uniform('a', lower = 0, upper = 100)#pymc.Normal('a', mu =  10, tau = 5**-2)
-    b = pymc.Uniform('b', lower = .05, upper = 2.0)
+    a = pymc.Uniform('a', lower = 0, upper = 100, value = 10.0)#pymc.Normal('a', mu =  10, tau = 5**-2)
+    b = pymc.Uniform('b', lower = .05, upper = 2.0, value = .5)
     varlist.append(a)
     varlist.append(b)
 
