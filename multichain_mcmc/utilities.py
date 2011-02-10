@@ -29,12 +29,12 @@ def vectorsMult( matrix, vectors):
 def truncate_gradient(vectors, gradLogPs, adapted_approximation, maxGradient):
     
     transformedGradients = vectorsMult(adapted_approximation.basis, gradLogPs)
-    transformedVectors = vectorsMult(adapted_approximation.transformation, vectors - adapted_approximation.location)
+    #transformedVectors = vectorsMult(adapted_approximation.transformation, vectors - adapted_approximation.location)
 
     # truncate by rescaling
-    normalNorms =np.sum(transformedVectors**2, axis = 1)**.5
+    #normalNorms =np.sum(transformedVectors**2, axis = 1)**.5
     gradientNorms = np.sum(transformedGradients**2, axis = 1)**.5
 
-    truncation = maxGradient * normalNorms
+    #truncation = maxGradient * normalNorms
     
-    return (truncation/np.maximum(truncation, gradientNorms))[:, np.newaxis] * gradLogPs
+    return (maxGradient  /np.maximum(maxGradient, gradientNorms))[:, np.newaxis] * gradLogPs

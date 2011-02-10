@@ -33,11 +33,11 @@ class AdaptedApproximation:
         oldMean = self.location 
         oldOrientation = self._orientation
         
-        self.location = project((1 - adaptation_rate) * mean(currentVectors, axis = 0) + adaptation_rate * oldMean , self.A1)
+        self.location = project(oldMean + (1 - adaptation_rate) * (mean(currentVectors, axis = 0) - oldMean), self.A1)
         
         d = (currentVectors - oldMean)
         
-        self._orientation = project((1 - adaptation_rate) * dot(d.transpose(),d)/self._n + adaptation_rate * oldOrientation, self.A1 )
+        self._orientation = project(oldOrientation + (1- adaptation_rate)* (dot(d.transpose(),d)/self._n - oldOrientation), self.A1 )
             
         self._update_orientation(self._orientation)
         
@@ -75,8 +75,7 @@ class AdaptedScale:
         
     def update(self, acceptance, adaptation_rate):
         
-        assert not isnan(max(project( self.scale *( 1  + adaptation_rate * mean (acceptance - self._optimal_acceptence)), self.A1), self._minimum_scaling))
-        self.scale = max(project( self.scale *( 1  + adaptation_rate * mean (acceptance - self._optimal_acceptence)), self.A1), self._minimum_scaling)
+        self.scale = max(project( self.scale *( 1  + ( 1-adaptation_rate) * mean (acceptance - self._optimal_acceptence)), self.A1), self._minimum_scaling)
         
 def project(x , A1):
     

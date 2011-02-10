@@ -35,15 +35,8 @@ class AmalaSampler(MultiChainSampler):
        
     """
     optimalAcceptance = .574
-    A1 = 1e7
-    e1 = 1e-5
-    e2 = 1e-5
-    outliersFound = 0
-    
-    
-    acceptRatio = 0.0
-    
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 3, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
+
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 5, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
         """Samples from a posterior distribution using Adaptive Metropolis Adjusted Langevin Algorithm (AMALA).
         
         Parameters
@@ -70,7 +63,6 @@ class AmalaSampler(MultiChainSampler):
                 sample sets 
                 self.history which contains the combined draws for all the chains
                 self.iter which is the total number of iterations 
-                self.acceptRatio which is the acceptance ratio
                 self.burnIn which is the number of burn in iterations done 
                 self.R  which is the gelman rubin convergence diagnostic for each dimension
         """
@@ -81,7 +73,7 @@ class AmalaSampler(MultiChainSampler):
         maxChainDraws = floor(ndraw_max/nChains)        
         self._initChains(nChains, ndraw_max)   
 
-        history = SimulationHistory(maxChainDraws,self._nChains, self.dimensions)
+        history = SimulationHistory(self.slices, maxChainDraws,self._nChains, self.dimensions)
         
         if variables_of_interest is not None:
             slices = []
@@ -110,7 +102,7 @@ class AmalaSampler(MultiChainSampler):
         for chain in self._chains:
             inv_hessian = find_mode(self,chain)    
 
-        adaptationConstant = min(self._nChains/(self.dimensions * samplesPerAdapatationParameter), 1)
+        adaptationConstant = min(self._nChains*1.0/(self.dimensions * samplesPerAdapatationParameter), 1)
 
         adapted_approximation = AdaptedApproximation(self._chains[1].vector, inv_hessian)
         adapted_scale = AdaptedScale(self.optimalAcceptance, minimum_scale)
@@ -151,9 +143,7 @@ class AmalaSampler(MultiChainSampler):
                     diagnostic.update()
                 
                 for diagnostic in monitor_diagnostics:
-                    print diagnostic.state()
-                    print history.nsamples < ndraw , any(grConvergence.R > convergenceCriteria), any(abs(covConvergence.relativeVariances['all']) > .2 ), any(abs(covConvergence.relativeVariances['interest']) > .1), history.ncomplete_sequence_histories < maxChainDraws - 1
-                    
+                    print diagnostic.state() 
                     
                     print adapted_approximation.orientation
                     print cov(history.samples.transpose()), history.samples.shape[0]
@@ -162,10 +152,10 @@ class AmalaSampler(MultiChainSampler):
             if iter % thin == 0:
                 history.record(self.vectors, self.logps, .5)
             
-            adaptation_rate = exp(-adaptationConstant) *  exp(-history.nsamples * adaptationDecay)
+            adaptation_rate = exp(-adaptationConstant/exp(history.nsamples * adaptationDecay))
             adapted_approximation.update(self.vectors, adaptation_rate)
+            mean(self.vectors)
             adapted_scale.update(acceptance, adaptation_rate)
-
             iter += 1
 
         self.finalize_chains()

@@ -11,7 +11,10 @@ class SimulationHistory(object):
     
     group_indicies = {'all' : slice(None, None)}
     
-    def __init__(self, maxChainDraws, nChains, dimensions):
+    
+    def __init__(self, slices, maxChainDraws, nChains, dimensions):
+        
+        self.slices = slices
         self._combined_history = np.zeros((nChains * maxChainDraws,dimensions ))
         self._sequence_histories = np.zeros((nChains, dimensions, maxChainDraws))
         self._logPSequences = np.zeros((nChains, maxChainDraws))

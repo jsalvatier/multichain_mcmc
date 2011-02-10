@@ -108,7 +108,7 @@ class MultiChainSampler:
         makes a decision about whether the proposed vector should be accepted
         """
         logMetropHastRatio = (proposalLogPs - currentLogPs) + (reverseJumpLogP - jumpLogP)
-        logMetropHastRatio[logical_not(isfinite(logMetropHastRatio))] = 0.0
+        logMetropHastRatio[logical_not(isfinite(logMetropHastRatio))] = -Inf
         self.reject(log(random.uniform(size = self._nChains)) < logMetropHastRatio)
         
         self._vectors = None

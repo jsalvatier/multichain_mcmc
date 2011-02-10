@@ -27,7 +27,7 @@ def find_mode(container, chain):
     
         return -gradient
     
-    results = fmin_bfgs(logp, chain.vector, grad_logp, disp = False, full_output = True)
+    results = fmin_bfgs(logp, chain.vector, grad_logp, disp = True, full_output = True)
     chain.propose(results[0])
     
     return results[3] #inverse hessian

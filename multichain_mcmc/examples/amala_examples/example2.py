@@ -6,36 +6,14 @@ Created on Nov 24, 2009
 import model2
 
 import pymc 
-import multichain_mcmc
+import multichain_mcmc as mc
 from pylab import *
 
 import pydevd
 pydevd.set_pm_excepthook()
 
-sampler = multichain_mcmc.AmalaSampler(model2.model)
-sampler.sample(nChains = 5,ndraw = 500,samplesPerAdapatationParameter = 10,adaptationDecayLength = 100,  thin = 5)
+sampler = mc.AmalaSampler(model2.model)
+history, time  = sampler.sample(nChains = 5, ndraw = 3000,  maxGradient = 100)
 
-
-print sampler.R
-history = sampler.history
-slices = sampler.slices
-print history.shape
-samples = history.shape[0]
-print sampler.accepts_ratio
-print sampler.burnIn
-print sampler.time 
-
-subplot(3,2,1)
-hist(history[:, slices['mean']])
-subplot(3,2,2)
-hist(history[:, slices['sd']])
-
-subplot(3,2,4)
-plot(history[:, slices['mean']])
-subplot(3,2,5)
-plot(history[:, slices['sd']])
-
-
-
-
-show()
+print time
+mc.show_samples(plot, history, ('mean', 'sd'))    
