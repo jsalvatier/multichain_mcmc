@@ -164,24 +164,24 @@ def normal_logp (x, orientation):
         
 
 def propose_amala(chains, adapted_approximation, adapted_scale, maxGradient):
+    e = .1
+    start_vectors = chains.vectors
     
-    start_vector = chains.vector
-    
-    p = random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = adapted_approximation.orientation, size = chains._nChains))
+    p = random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = adapted_approximation.orientation, size = chains._nChains)
     start_p = p
     
     p = p - (e/2) * chains.logp_grads
     
-    for i in T: 
-        chains.propose(chains.vector + e * vectorsMult(adapted_approximation.orientation, p))
-        if i != T -1:
+    for i in range(4): 
+        chains.propose(chains.vectors + e * vectorsMult(adapted_approximation.orientation, p))
+        if i != 4 -1:
             p = p - e * chains.logp_grads
          
     p = p - (e/2) * chains.logp_grads   
     
     p = -p 
-    end_vector = chains.vectors
-    chains.propose(start_vector)
-    chains.propose(end_vector)
+    end_vectors = chains.vectors
+    chains.propose(start_vectors)
+    chains.propose(end_vectors)
     return normal_logp(p, adapted_approximation.orientation), normal_logp(start_p, adapted_approximation.orientation)
     

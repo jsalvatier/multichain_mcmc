@@ -6,33 +6,15 @@ Created on Nov 24, 2009
 import model2
 
 import pymc 
-import multichain_mcmc
+import multichain_mcmc as mc
 from pylab import *
 
-sampler = multichain_mcmc.HamiltonianSampler(model2.model)
-sampler.sample(nChains = 5, ndraw = 300,adaptationConstant = .5, steps = 10, burnIn = 20, debug = 20, mConvergence = True,mAccept = True)
+import pydevd
+pydevd.set_pm_excepthook()
+import numpy 
+numpy.seterr(all = 'raise')
+sampler = mc.HMCSampler(model2.model)
+history, time  = sampler.sample(nChains = 5, ndraw = 3000,  maxGradient = 100)
 
-
-print sampler.R
-history = sampler.history
-slices = sampler.slices
-print history.shape
-samples = history.shape[0]
-print sampler.acceptRatio
-print sampler.burnIn
-print sampler.time 
-
-subplot(3,2,1)
-hist(history[:, slices['mean']])
-subplot(3,2,2)
-hist(history[:, slices['sd']])
-
-subplot(3,2,4)
-plot(history[:, slices['mean']])
-subplot(3,2,5)
-plot(history[:, slices['sd']])
-
-
-
-
-show()
+print time
+mc.show_samples(plot, history, ('mean', 'sd'))    
