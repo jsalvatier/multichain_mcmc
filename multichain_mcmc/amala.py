@@ -143,11 +143,7 @@ class AmalaSampler(MultiChainSampler):
                     diagnostic.update()
                 
                 for diagnostic in monitor_diagnostics:
-                    print diagnostic.state() 
-                    
-                    print adapted_approximation.orientation
-                    print cov(history.samples.transpose()), history.samples.shape[0]
-                    print exp(-adaptationConstant) *  exp(-history.nsamples * adaptationDecay)
+                    print diagnostic.state()
 
             if iter % thin == 0:
                 history.record(self.vectors, self.logps, .5)
