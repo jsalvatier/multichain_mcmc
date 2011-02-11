@@ -6,15 +6,14 @@ Created on Jan 13, 2010
 from __future__ import division
 from pymc import *
 
+import time 
 from numpy import *
+
 from convergence import GRConvergence, CovarianceConvergence
 from adaptation import AdaptedApproximation, AdaptedScale
-import scipy.optimize
 from multichain import MultiChainSampler, MultiChain
-import time 
-import dream_components
 from utilities import vectorsMult, eigen,truncate_gradient
-from simulation_history import *
+from simulation_history import SimulationHistory
 from mode_finding import find_mode
 
 class AmalaSampler(MultiChainSampler):
@@ -36,7 +35,7 @@ class AmalaSampler(MultiChainSampler):
     """
     optimalAcceptance = .574
 
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 5, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 5, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
         """Samples from a posterior distribution using Adaptive Metropolis Adjusted Langevin Algorithm (AMALA).
         
         Parameters
@@ -55,7 +54,6 @@ class AmalaSampler(MultiChainSampler):
             determines whether to periodically print out convergence statistics (True)
         monitor_acceptence : bool
             determines whether to periodically print out the average acceptance ratio and adapted scale 
-        initial_point : dictionary  
             
         Returns
         -------
@@ -95,7 +93,6 @@ class AmalaSampler(MultiChainSampler):
         monitor_diagnostics = [convergence_diagnostics[0], convergence_diagnostics[2]]     
         
         iter = 1
-
         lastRecalculation = 0
                
         # try to find some approximate modes for starting the chain 

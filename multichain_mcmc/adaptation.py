@@ -56,6 +56,8 @@ class AdaptedApproximation:
             self.basis = basis
             self.transformation = linalg.inv(basis )
             self._last_calc = 0
+            
+            self.inv_cov = linalg.inv(orientation)
         else :
             self._last_calc += 1
 

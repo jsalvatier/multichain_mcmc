@@ -36,7 +36,7 @@ class HMCSampler(MultiChainSampler):
     """
     optimalAcceptance = .574
 
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 5, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 30, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
         """Samples from a posterior distribution using Adaptive Metropolis Adjusted Langevin Algorithm (AMALA).
         
         Parameters
@@ -150,9 +150,8 @@ class HMCSampler(MultiChainSampler):
                 history.record(self.vectors, self.logps, .5)
             
             adaptation_rate = exp(-adaptationConstant/exp(history.nsamples * adaptationDecay))
-            adapted_approximation.update(self.vectors, adaptation_rate)
-            mean(self.vectors)
-            adapted_scale.update(acceptance, adaptation_rate)
+            #adapted_approximation.update(self.vectors, adaptation_rate)
+            #adapted_scale.update(acceptance, adaptation_rate)
             iter += 1
 
         self.finalize_chains()
@@ -164,24 +163,31 @@ def normal_logp (x, orientation):
         
 
 def propose_amala(chains, adapted_approximation, adapted_scale, maxGradient):
-    e = .1
+    e = .25
     start_vectors = chains.vectors
+    startp = chains.logps
     
+    #p = random.normal( size = (chains._nChains,chains.dimensions)
     p = random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = adapted_approximation.orientation, size = chains._nChains)
     start_p = p
     
-    p = p - (e/2) * chains.logp_grads
+    p = p + (e/2) * chains.logp_grads
     
-    for i in range(4): 
-        chains.propose(chains.vectors + e * vectorsMult(adapted_approximation.orientation, p))
-        if i != 4 -1:
-            p = p - e * chains.logp_grads
+    T = 10
+    for i in range(T): 
+        chains.propose(chains.vectors + e * p)#vectorsMult(linalg.inv(adapted_approximation.orientation), p))
+        if i != T -1:
+            p = p + e * chains.logp_grads
          
-    p = p - (e/2) * chains.logp_grads   
+    p = p + (e/2) * chains.logp_grads   
     
     p = -p 
     end_vectors = chains.vectors
     chains.propose(start_vectors)
     chains.propose(end_vectors)
+    chains.vectors - start_vectors
+    #(chains.logps - startp + sum(p**2, axis =1) - sum(start_p**2, axis =1)) 
+    (chains.logps - startp + normal_logp(p, adapted_approximation.orientation) - normal_logp(start_p, adapted_approximation.orientation))
+    #return sum(p**2, axis =1),sum(start_p**2, axis =1) 
     return normal_logp(p, adapted_approximation.orientation), normal_logp(start_p, adapted_approximation.orientation)
     

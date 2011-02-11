@@ -12,9 +12,9 @@ from pylab import *
 import pydevd
 pydevd.set_pm_excepthook()
 import numpy 
-numpy.seterr(all = 'raise')
+#numpy.seterr(all = 'raise')
 sampler = mc.HMCSampler(model2.model)
-history, time  = sampler.sample(nChains = 5, ndraw = 3000,  maxGradient = 100)
+history, time  = sampler.sample(nChains = 5, ndraw = 500,  maxGradient = 100)
 
 print time
-mc.show_samples(plot, history, ('mean', 'sd'))    
+mc.show_samples(plot, history, ('mean',))    
