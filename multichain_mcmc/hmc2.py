@@ -36,7 +36,7 @@ class HMCSampler(MultiChainSampler):
     """
     optimalAcceptance = .574
 
-    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 30, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 2, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
+    def sample(self, ndraw = 1000, samplesPerAdapatationParameter = 30, adaptationDecayLength = 250, variables_of_interest = None,minimum_scale = .1, maxGradient = 1.0, ndraw_max = None , nChains = 5, burnIn = 1000, thin = 1, initial_point = None, convergenceCriteria = 1.1, monitor_convergence = True, monitor_acceptence = True):
         """Samples from a posterior distribution using Adaptive Metropolis Adjusted Langevin Algorithm (AMALA).
         
         Parameters
@@ -125,7 +125,7 @@ class HMCSampler(MultiChainSampler):
 
             current_logps = self.logps
 
-            jump_logp, reverse_logp = propose_amala(self,adapted_approximation, adapted_scale, maxGradient)
+            jump_logp, reverse_logp = hmc_propose(self,adapted_approximation, adapted_scale, maxGradient)
    
             acceptance = self.metropolis_hastings(current_logps,self.logps, jump_logp, reverse_logp) 
                 
@@ -158,36 +158,35 @@ class HMCSampler(MultiChainSampler):
         
         return history , time.time() - startTime
     
-def normal_logp (x, orientation):
-    return array([pymc.distributions.mv_normal_cov_like(x = x[i,:], mu = zeros(x.shape[1]), C = orientation) for i in range(x.shape[0])])
+def kenergy (x, orientation):
+    return array([.5 * dot(x[i,:],dot(orientation, x[i,:])) for i in range(x.shape[0])])
         
 
-def propose_amala(chains, adapted_approximation, adapted_scale, maxGradient):
+def hmc_propose(chains, adapted_approximation, adapted_scale, maxGradient):
     e = .25
     start_vectors = chains.vectors
     startp = chains.logps
     
-    #p = random.normal( size = (chains._nChains,chains.dimensions)
-    p = random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = adapted_approximation.orientation, size = chains._nChains)
+    p = random.multivariate_normal(mean = zeros(chains.dimensions) ,cov = adapted_approximation.inv_orientation, size = chains._nChains)
     start_p = p
     
-    p = p + (e/2) * chains.logp_grads
+    p = p - (e/2) * (-chains.logp_grads)
     
-    T = 10
+    T = 3
     for i in range(T): 
-        chains.propose(chains.vectors + e * p)#vectorsMult(linalg.inv(adapted_approximation.orientation), p))
+        chains.propose(chains.vectors + e * vectorsMult(adapted_approximation.orientation, p))
         if i != T -1:
-            p = p + e * chains.logp_grads
+            p = p - e * (-chains.logp_grads)
          
-    p = p + (e/2) * chains.logp_grads   
+    p = p - (e/2) * (-chains.logp_grads)   
     
     p = -p 
     end_vectors = chains.vectors
     chains.propose(start_vectors)
     chains.propose(end_vectors)
     chains.vectors - start_vectors
-    #(chains.logps - startp + sum(p**2, axis =1) - sum(start_p**2, axis =1)) 
-    (chains.logps - startp + normal_logp(p, adapted_approximation.orientation) - normal_logp(start_p, adapted_approximation.orientation))
-    #return sum(p**2, axis =1),sum(start_p**2, axis =1) 
-    return normal_logp(p, adapted_approximation.orientation), normal_logp(start_p, adapted_approximation.orientation)
+    #( (-startp) - (-chains.logps)  +  sum(start_p**2, axis =1)/2 - sum(p**2, axis =1)/2) 
+    #( (-startp) - (-chains.logps) + kenergy(start_p, adapted_approximation.orientation) - kenergy(p, adapted_approximation.orientation))
+    #return sum(p**2, axis =1)/2,sum(start_p**2, axis =1) /2
+    return kenergy(p, adapted_approximation.orientation), kenergy(start_p, adapted_approximation.orientation)
     
